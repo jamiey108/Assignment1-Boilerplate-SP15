@@ -1,0 +1,21 @@
+<div><a role="button" class="btn btn-default btn-lg" href="/login">Back</a></div>
+<div class="container">
+	<h2> Likes Table </h2>
+	<table class="table">
+	<thead>
+		<tr>
+			<th>Category</th>
+			<th>Name</th>
+		</tr>
+	</thead>
+	<tbody>
+		{{#each likes}}
+		<tr>
+			<td>{{category}}</td>
+			<td>{{name}}</td>
+		</tr>
+		{{/each}}
+	</tbody>
+	</table>
+	
+</div>
