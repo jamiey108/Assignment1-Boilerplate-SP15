@@ -129,11 +129,25 @@ app.set('port', process.env.PORT || 3000);
 //   the request will proceed.  Otherwise, the user will be redirected to the
 //   login page.
 function ensureAuthenticated(req, res, next) {
-  if (req.isAuthenticated()) { 
+  if (req.isAuthenticated()) { //
     return next(); 
   }
   res.redirect('/login');
 }
+
+/*function ig_ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated() && !!req.user.ig_id) { //
+    return next(); 
+  }
+  res.redirect('/login');
+}
+
+function fb_ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated() && !!req.user.fb_id) { //
+    return next(); 
+  }
+  res.redirect('/login');
+}*/
 
 //routes
 app.get('/', function(req, res){
@@ -144,44 +158,55 @@ app.get('/login', function(req, res){
   res.render('login', { user: req.user });
 });
 
+//fb set access token
 app.get('/account', ensureAuthenticated, function(req, res){
-  var query = models.User.where({name: req.user.username});
- 
-  query.findOne(function(err, user) {
-    if (err) return handleError(err);
-    if (user) {
-      graph.get('/me', function(err, data) {
-       res.render('account', {user: data});
-      });
-    }
-  });
+  if(req.user.provider == 'instagram'){
+    res.redirect('/login');
+  }
+  else{
+    var query = models.User.where({name: req.user.username});
+   
+    query.findOne(function(err, user) {
+      if (err) return handleError(err);
+      if (user) {
+        graph.get('/me', function(err, data) {
+         res.render('account', {user: data});
+        });
+      }
+    });
+  }
 });
 var likes = require('./routes/likes');
 app.get('/pics', ensureAuthenticated, likes.view);
 
 app.get('/photos', ensureAuthenticated, function(req, res){
-  var query  = models.User.where({ name: req.user.username });
-  query.findOne(function (err, user) {
-    if (err) return handleError(err);
-    if (user) {
-      // doc may be null if no document matched
-      Instagram.users.liked_by_self({
-        access_token: user.access_token,
-        complete: function(data) {
-          //Map will iterate through the returned data obj
-          var imageArr = data.map(function(item) {
-            //create temporary json object
-            tempJSON = {};
-            tempJSON.url = item.images.low_resolution.url;
-            tempJSON.caption  = item.caption.text;
-            //insert json object into image array
-            return tempJSON;
-          });
-          res.render('photos', {photos: imageArr});
-        }
-      }); 
-    }
-  });
+  if(req.user.provider != 'instagram'){
+    res.redirect('/login');
+  }
+  else{
+    var query  = models.User.where({ name: req.user.username });
+    query.findOne(function (err, user) {
+      if (err) return handleError(err);
+      if (user) {
+        // doc may be null if no document matched
+        Instagram.users.liked_by_self({
+          access_token: user.access_token,
+          complete: function(data) {
+            //Map will iterate through the returned data obj
+            var imageArr = data.map(function(item) {
+              //create temporary json object
+              tempJSON = {};
+              tempJSON.url = item.images.low_resolution.url;
+              tempJSON.caption  = item.caption.text;
+              //insert json object into image array
+              return tempJSON;
+            });
+            res.render('photos', {photos: imageArr});
+          }
+        }); 
+      }
+    });
+  }
 });
 
 
@@ -223,8 +248,10 @@ app.get('/auth/facebook',
 // access was granted, the user will be logged in.  Otherwise,
 // authentication has failed.
 app.get('/auth/facebook/callback', 
-passport.authenticate('facebook', { successRedirect: '/account',
-                                    failureRedirect: '/login' }));
+passport.authenticate('facebook', { failureRedirect: '/login'}),
+  function(req, res) {
+    res.redirect('/account');
+  });
 
 app.get('/logout', function(req, res){
   req.logout();
